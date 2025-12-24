@@ -1,9 +1,26 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import prisma from "../../lib/db/client";
+import prisma from "@/lib/db/client"; 
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+
+
+type DashboardPost = {
+  id: number;
+  title: string;
+  status: string;
+  createdAt: Date;
+  author: {
+    name: string;
+  };
+};
+
+
+type DashboardMessage = {
+  id: number;
+  name: string;
+  messageBody: string;
+};
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
@@ -17,13 +34,15 @@ export default async function AdminDashboard() {
   const totalViews = await prisma.postView.count();
   const pendingComments = await prisma.comment.count({ where: { status: "PENDING" } });
 
-  const latestPosts = await prisma.post.findMany({
+  
+  const latestPosts: DashboardPost[] = await prisma.post.findMany({
     take: 5,
     orderBy: { createdAt: "desc" },
-    include: { author: true },
+    include: { author: { select: { name: true } } },
   });
 
-  const recentMessages = await prisma.contactMessage.findMany({
+  
+  const recentMessages: DashboardMessage[] = await prisma.contactMessage.findMany({
     take: 3,
     orderBy: { createdAt: "desc" },
   });
@@ -43,28 +62,28 @@ export default async function AdminDashboard() {
           <Link href="/admin-panel" className="block py-3 px-4 bg-blue-600 rounded-lg font-medium">
             Dashboard
           </Link>
-          <Link href="/admin-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Posts
           </Link>
-          <Link href="/admin-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             + New Post
           </Link>
-          <Link href="/admin-panel/authors" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/authors" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Authors
           </Link>
-          <Link href="/admin-panel/categories" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/categories" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Categories
           </Link>
-          <Link href="/admin-panel/tags" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/tags" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Tags
           </Link>
-          <Link href="/admin-panel/comments" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/comments" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Comments
           </Link>
-          <Link href="/admin-panel/contact-messages" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/contact-messages" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Contact Messages
           </Link>
-          <Link href="/admin-panel/settings" className="block py-3 px-4 hover:bg-gray-700 rounded-lg mt-8">
+          <Link href="/admin-panel/settings" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition mt-8">
             Settings
           </Link>
         </nav>
@@ -75,11 +94,11 @@ export default async function AdminDashboard() {
             <img
               src={session.user.image || "https://placehold.co/40x40"}
               alt="Admin"
-              className="w-10 h-10 rounded-full"
+              className="w-10 h-10 rounded-full object-cover"
             />
             <div>
-              <p className="font-medium">{session.user.name}</p>
-              <p className="text-sm text-gray-400">Admin</p>
+              <p className="font-medium">{session.user.name || "Admin"}</p>
+              <p className="text-sm text-gray-400">Administrator</p>
             </div>
           </div>
 
@@ -139,58 +158,81 @@ export default async function AdminDashboard() {
                 View All →
               </Link>
             </div>
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-gray-400 border-b border-gray-700">
-                  <th className="pb-3">POST TITLE</th>
-                  <th className="pb-3">AUTHOR</th>
-                  <th className="pb-3">DATE</th>
-                  <th className="pb-3">STATUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {latestPosts.map((post) => (
-                  <tr key={post.id} className="border-b border-gray-700">
-                    <td className="py-4">{post.title}</td>
-                    <td className="py-4">{post.author.name}</td>
-                    <td className="py-4">{new Date(post.createdAt).toLocaleDateString()}</td>
-                    <td className="py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        post.status === "PUBLISHED" ? "bg-green-600" :
-                        post.status === "DRAFT" ? "bg-orange-600" :
-                        post.status === "PENDING" ? "bg-yellow-600" :
-                        "bg-red-600"
-                      }`}>
-                        {post.status}
-                      </span>
-                    </td>
+            {latestPosts.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">No posts yet.</p>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-gray-400 border-b border-gray-700">
+                    <th className="pb-3">POST TITLE</th>
+                    <th className="pb-3">AUTHOR</th>
+                    <th className="pb-3">DATE</th>
+                    <th className="pb-3">STATUS</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {latestPosts.map((post) => (
+                    <tr key={post.id} className="border-b border-gray-700 hover:bg-gray-750 transition">
+                      <td className="py-4">
+                        <Link href={`/admin-panel/posts/${post.id}/edit`} className="hover:text-blue-400">
+                          {post.title}
+                        </Link>
+                      </td>
+                      <td className="py-4">{post.author.name}</td>
+                      <td className="py-4">
+                        {new Date(post.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="py-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            post.status === "PUBLISHED"
+                              ? "bg-green-600"
+                              : post.status === "DRAFT"
+                              ? "bg-orange-600"
+                              : post.status === "PENDING"
+                              ? "bg-yellow-600"
+                              : "bg-red-600"
+                          }`}
+                        >
+                          {post.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           {/* Recent Messages */}
           <div className="bg-gray-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Recent Messages</h2>
-              <Link href="/admin-panel/contact-message" className="text-blue-400 hover:underline">
+              <Link href="/admin-panel/contact-messages" className="text-blue-400 hover:underline">
                 View All →
               </Link>
             </div>
-            <div className="space-y-4">
-              {recentMessages.map((msg) => (
-                <div key={msg.id} className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-sm font-bold">
-                    {msg.name.charAt(0)}
+            {recentMessages.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">No messages yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {recentMessages.map((msg) => (
+                  <div key={msg.id} className="flex items-start gap-4 p-4 bg-gray-750 rounded-lg">
+                    <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      {msg.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">{msg.name}</p>
+                      <p className="text-gray-400 text-sm line-clamp-2">{msg.messageBody}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{msg.name}</p>
-                    <p className="text-gray-400 text-sm">{msg.messageBody.substring(0, 50)}...</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>
