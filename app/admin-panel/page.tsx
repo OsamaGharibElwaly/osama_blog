@@ -34,14 +34,14 @@ export default async function AdminDashboard() {
   const totalViews = await prisma.postView.count();
   const pendingComments = await prisma.comment.count({ where: { status: "PENDING" } });
 
-  
+
   const latestPosts: DashboardPost[] = await prisma.post.findMany({
     take: 5,
     orderBy: { createdAt: "desc" },
     include: { author: { select: { name: true } } },
   });
 
-  
+
   const recentMessages: DashboardMessage[] = await prisma.contactMessage.findMany({
     take: 3,
     orderBy: { createdAt: "desc" },
@@ -154,7 +154,7 @@ export default async function AdminDashboard() {
           <div className="bg-gray-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Latest Posts</h2>
-              <Link href="/admin-panel/posts" className="text-blue-400 hover:underline">
+              <Link href="/admin-panel/posts" className="text-blue-400 hover:underline transition">
                 View All →
               </Link>
             </div>
@@ -174,7 +174,7 @@ export default async function AdminDashboard() {
                   {latestPosts.map((post) => (
                     <tr key={post.id} className="border-b border-gray-700 hover:bg-gray-750 transition">
                       <td className="py-4">
-                        <Link href={`/admin-panel/posts/${post.id}/edit`} className="hover:text-blue-400">
+                        <Link href={`/admin-panel/posts/${post.id}/edit`} className="hover:text-blue-400 transition">
                           {post.title}
                         </Link>
                       </td>
@@ -212,7 +212,7 @@ export default async function AdminDashboard() {
           <div className="bg-gray-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Recent Messages</h2>
-              <Link href="/admin-panel/contact-messages" className="text-blue-400 hover:underline">
+              <Link href="/admin-panel/contact-messages" className="text-blue-400 hover:underline transition">
                 View All →
               </Link>
             </div>
@@ -221,7 +221,7 @@ export default async function AdminDashboard() {
             ) : (
               <div className="space-y-4">
                 {recentMessages.map((msg) => (
-                  <div key={msg.id} className="flex items-start gap-4 p-4 bg-gray-750 rounded-lg">
+                  <div key={msg.id} className="flex items-start gap-4 p-4 bg-gray-750 rounded-lg transition">
                     <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
                       {msg.name.charAt(0).toUpperCase()}
                     </div>
