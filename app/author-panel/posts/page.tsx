@@ -36,9 +36,9 @@ export default async function AuthorDashboard() {
 
   const stats = {
     totalPosts: posts.length,
-    published: posts.filter((p) => p.status === "PUBLISHED").length,
-    drafts: posts.filter((p) => p.status === "DRAFT").length,
-    pending: posts.filter((p) => p.status === "PENDING").length,
+    published: posts.filter((p: AuthorPost) => p.status === "PUBLISHED").length,
+    drafts: posts.filter((p: AuthorPost) => p.status === "DRAFT").length,
+    pending: posts.filter((p: AuthorPost) => p.status === "PENDING").length,
   };
 
   return (
