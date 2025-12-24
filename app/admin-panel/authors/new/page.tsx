@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import prisma from "@/lib/db/client"; // تأكد من المسار الصح
 import Link from "next/link";
 import { hash } from "bcryptjs";
+import type { Role } from "@prisma/client"; // ← type only import (مش هيسبب error حتى لو الـ client custom)
 
 export default async function NewAuthorPage() {
   const session = await getServerSession(authOptions);
@@ -13,7 +14,7 @@ export default async function NewAuthorPage() {
     redirect("/login");
   }
 
-  // جلب الـ roles بدون type خارجي
+  // جلب الـ roles
   const roles = await prisma.role.findMany({
     orderBy: { name: "asc" },
   });
@@ -133,7 +134,7 @@ export default async function NewAuthorPage() {
               className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select a role</option>
-              {roles.map((role) => (
+              {roles.map((role: Role) => (
                 <option key={role.id} value={role.id}>
                   {role.name} {role.description && `(${role.description})`}
                 </option>
