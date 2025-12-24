@@ -1,10 +1,12 @@
 // src/app/admin-panel/authors/new/page.tsx
+
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import prisma from "../../../../lib/db/client";
+import prisma from "@/lib/db/client"; // عدل المسار لو مختلف
 import Link from "next/link";
 import { hash } from "bcryptjs";
+import { Role } from "@prisma/client"; // ← أضف الـ import ده
 
 export default async function NewAuthorPage() {
   const session = await getServerSession(authOptions);
@@ -12,8 +14,10 @@ export default async function NewAuthorPage() {
     redirect("/login");
   }
 
-  // جلب الـ Roles للـ dropdown
-  const roles = await prisma.role.findMany({ orderBy: { name: "asc" } });
+  // جلب الـ Roles مع type واضح
+  const roles: Role[] = await prisma.role.findMany({
+    orderBy: { name: "asc" },
+  });
 
   async function createAuthor(formData: FormData) {
     "use server";
@@ -25,7 +29,7 @@ export default async function NewAuthorPage() {
     const profileImageUrl = (formData.get("profileImageUrl") as string) || null;
     const roleId = Number(formData.get("roleId"));
 
-    if (!name || !email || !rawPassword || !roleId) {
+    if (!name || !email || !rawPassword || isNaN(roleId)) {
       throw new Error("All required fields must be filled");
     }
 
@@ -48,7 +52,7 @@ export default async function NewAuthorPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
-      {/* Sidebar موحد */}
+      {/* Sidebar */}
       <aside className="w-64 bg-gray-800 p-6 flex flex-col">
         <div className="flex items-center gap-3 mb-10">
           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-xl font-bold">
@@ -76,7 +80,7 @@ export default async function NewAuthorPage() {
           <Link href="/admin-panel/tags" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
             Tags
           </Link>
-          {/* باقي اللينكات */}
+          {/* باقي اللينكات لو عايز */}
         </nav>
       </aside>
 
@@ -123,7 +127,7 @@ export default async function NewAuthorPage() {
             <p className="text-sm text-gray-400 mt-2">The password will be securely hashed</p>
           </div>
 
-          {/* Role */}
+          {/* Role Dropdown */}
           <div>
             <label className="block text-sm font-medium mb-2">Role *</label>
             <select
@@ -132,7 +136,7 @@ export default async function NewAuthorPage() {
               className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select a role</option>
-              {roles.map((role) => (
+              {roles.map((role: Role) => (  // ← أضف :Role هنا عشان TypeScript يعرف
                 <option key={role.id} value={role.id}>
                   {role.name} {role.description && `(${role.description})`}
                 </option>
@@ -172,7 +176,7 @@ export default async function NewAuthorPage() {
             </button>
             <Link
               href="/admin-panel/authors"
-              className="px-8 py-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium text-lg"
+              className="px-8 py-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium text-lg transition"
             >
               Cancel
             </Link>
