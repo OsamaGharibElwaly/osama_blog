@@ -1,9 +1,18 @@
-// src/app/author-panel/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import prisma from "../../../lib/db/client";
+import prisma from "@/lib/db/client";
 import Link from "next/link";
+
+
+type AuthorPost = {
+  id: number;
+  title: string;
+  slug: string;  
+  status: string;
+  createdAt: Date;
+  comments: Array<{ id: number }>; 
+};
 
 export default async function AuthorDashboard() {
   const session = await getServerSession(authOptions);
@@ -14,17 +23,22 @@ export default async function AuthorDashboard() {
 
   const authorId = Number(session.user.id);
 
-  const posts = await prisma.post.findMany({
+  if (isNaN(authorId) || !authorId) {
+    redirect("/login");
+  }
+
+  
+  const posts: AuthorPost[] = await prisma.post.findMany({
     where: { authorId },
     orderBy: { createdAt: "desc" },
-    include: { comments: true },
+    include: { comments: { select: { id: true } } }, 
   });
 
   const stats = {
     totalPosts: posts.length,
-    published: posts.filter(p => p.status === "PUBLISHED").length,
-    drafts: posts.filter(p => p.status === "DRAFT").length,
-    pending: posts.filter(p => p.status === "PENDING").length,
+    published: posts.filter((p) => p.status === "PUBLISHED").length,
+    drafts: posts.filter((p) => p.status === "DRAFT").length,
+    pending: posts.filter((p) => p.status === "PENDING").length,
   };
 
   return (
@@ -42,10 +56,10 @@ export default async function AuthorDashboard() {
           <Link href="/author-panel" className="block py-3 px-4 bg-green-600 rounded-lg font-medium">
             Dashboard
           </Link>
-          <Link href="/author-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/author-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             My Posts
           </Link>
-          <Link href="/author-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/author-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             + New Post
           </Link>
         </nav>
@@ -56,10 +70,10 @@ export default async function AuthorDashboard() {
             <img
               src={session.user.image || "https://placehold.co/40x40"}
               alt="Author"
-              className="w-10 h-10 rounded-full"
+              className="w-10 h-10 rounded-full object-cover"
             />
             <div>
-              <p className="font-medium">{session.user.name}</p>
+              <p className="font-medium">{session.user.name || "Author"}</p>
               <p className="text-sm text-gray-400">Author</p>
             </div>
           </div>
@@ -77,7 +91,7 @@ export default async function AuthorDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 p-8">
-        <h1 className="text-3xl font-bold mb-8">Welcome back, {session.user.name}!</h1>
+        <h1 className="text-3xl font-bold mb-8">Welcome back, {session.user.name || "Author"}!</h1>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
@@ -102,41 +116,75 @@ export default async function AuthorDashboard() {
         {/* Recent Posts */}
         <div>
           <h2 className="text-2xl font-bold mb-6">Your Recent Posts</h2>
-          <div className="bg-gray-800 rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="text-left p-4">Title</th>
-                  <th className="text-left p-4">Status</th>
-                  <th className="text-left p-4">Comments</th>
-                  <th className="text-left p-4">Date</th>
-                  <th className="text-left p-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {posts.slice(0, 5).map((post) => (
-                  <tr key={post.id} className="border-b border-gray-700">
-                    <td className="p-4">{post.title}</td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-xs ${
-                        post.status === "PUBLISHED" ? "bg-green-600" :
-                        post.status === "DRAFT" ? "bg-orange-600" :
-                        "bg-yellow-600"
-                      }`}>
-                        {post.status}
-                      </span>
-                    </td>
-                    <td className="p-4">{post.comments.length}</td>
-                    <td className="p-4">{new Date(post.createdAt).toLocaleDateString()}</td>
-                    <td className="p-4">
-                      <Link href={`/author-panel/posts/${post.id}/edit`} className="text-blue-400 hover:underline">
-                        Edit
-                      </Link>
-                    </td>
+          <div className="bg-gray-800 rounded-xl overflow-hidden shadow-lg">
+            {posts.length === 0 ? (
+              <p className="text-center py-16 text-gray-400 text-xl">
+                No posts yet.{" "}
+                <Link href="/author-panel/posts/new" className="text-green-400 hover:underline">
+                  Create your first post!
+                </Link>
+              </p>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-700">
+                  <tr>
+                    <th className="text-left p-4 font-medium">Title</th>
+                    <th className="text-left p-4 font-medium">Status</th>
+                    <th className="text-left p-4 font-medium">Comments</th>
+                    <th className="text-left p-4 font-medium">Date</th>
+                    <th className="text-left p-4 font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {posts.slice(0, 5).map((post) => (
+                    <tr key={post.id} className="border-b border-gray-700 hover:bg-gray-750 transition">
+                      <td className="p-4">
+                        <Link href={`/author-panel/posts/${post.id}/edit`} className="hover:text-green-400 transition">
+                          {post.title}
+                        </Link>
+                      </td>
+                      <td className="p-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            post.status === "PUBLISHED"
+                              ? "bg-green-600"
+                              : post.status === "DRAFT"
+                              ? "bg-orange-600"
+                              : "bg-yellow-600"
+                          }`}
+                        >
+                          {post.status}
+                        </span>
+                      </td>
+                      <td className="p-4">{post.comments.length}</td>
+                      <td className="p-4">
+                        {new Date(post.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="p-4">
+                        <Link
+                          href={`/author-panel/posts/${post.id}/edit`}
+                          className="text-green-400 hover:underline"
+                        >
+                          Edit
+                        </Link>
+                        {" | "}
+                        <Link
+                          href={`/posts/${post.slug || post.id}`}
+                          className="text-blue-400 hover:underline"
+                          target="_blank"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </main>
