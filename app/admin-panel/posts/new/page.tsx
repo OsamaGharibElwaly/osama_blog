@@ -1,11 +1,22 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import prisma from "../../../../lib/db/client";
+import prisma from "@/lib/db/client"; 
 import Link from "next/link";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import MarkdownEditor from "@/components/MarkdownEditor";
+
+
+type AdminCategory = {
+  id: number;
+  name: string;
+};
+
+type AdminTag = {
+  id: number;
+  name: string;
+};
 
 export default async function NewPostPage() {
   const session = await getServerSession(authOptions);
@@ -23,8 +34,15 @@ export default async function NewPostPage() {
     throw new Error("Invalid user ID");
   }
 
-  const categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
-  const tags = await prisma.tag.findMany({ orderBy: { name: "asc" } });
+  const categories: AdminCategory[] = await prisma.category.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  const tags: AdminTag[] = await prisma.tag.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 
   async function createPost(formData: FormData) {
     "use server";
@@ -42,7 +60,7 @@ export default async function NewPostPage() {
     const content = formData.get("content") as string;
     const status = formData.get("status") as "DRAFT" | "PENDING" | "PUBLISHED";
 
-    let thumbnailUrl = null;
+    let thumbnailUrl: string | null = null;
     const file = formData.get("thumbnail") as File | null;
 
     if (file && file.size > 0) {
@@ -61,10 +79,11 @@ export default async function NewPostPage() {
 
     const categoryIds = (formData.getAll("categories") as string[])
       .map(Number)
-      .filter(Boolean);
+      .filter((n) => !isNaN(n));
+
     const tagIds = (formData.getAll("tags") as string[])
       .map(Number)
-      .filter(Boolean);
+      .filter((n) => !isNaN(n));
 
     await prisma.post.create({
       data: {
@@ -103,19 +122,19 @@ export default async function NewPostPage() {
         </div>
 
         <nav className="space-y-2 flex-1">
-          <Link href="/admin-panel" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Dashboard
           </Link>
-          <Link href="/admin-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Posts
           </Link>
           <Link href="/admin-panel/posts/new" className="block py-3 px-4 bg-blue-600 rounded-lg font-medium">
             + New Post
           </Link>
-          <Link href="/admin-panel/categories" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/categories" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Categories
           </Link>
-          <Link href="/admin-panel/tags" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/tags" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Tags
           </Link>
         </nav>
@@ -150,17 +169,16 @@ export default async function NewPostPage() {
             />
           </div>
 
-          {/* Markdown Editor with Live Preview */}
+          {/* Markdown Editor */}
           <MarkdownEditor name="content" required />
 
           {/* Thumbnail */}
           <div>
-            <label className="block text-sm font-medium mb-2">Thumbnail Image *</label>
+            <label className="block text-sm font-medium mb-2">Thumbnail Image (optional)</label>
             <input
               name="thumbnail"
               type="file"
               accept="image/*"
-              required
               className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-600 file:text-white hover:file:bg-blue-700"
             />
             <p className="text-sm text-gray-400 mt-2">Recommended: 1200x630px</p>
@@ -185,8 +203,13 @@ export default async function NewPostPage() {
             <label className="block text-sm font-medium mb-2">Categories</label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {categories.map((cat) => (
-                <label key={cat.id} className="flex items-center gap-3">
-                  <input type="checkbox" name="categories" value={cat.id} className="rounded" />
+                <label key={cat.id} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="categories"
+                    value={cat.id}
+                    className="w-5 h-5 text-blue-600 bg-gray-800 border-gray-700 rounded focus:ring-blue-500"
+                  />
                   <span>{cat.name}</span>
                 </label>
               ))}
@@ -198,8 +221,13 @@ export default async function NewPostPage() {
             <label className="block text-sm font-medium mb-2">Tags</label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {tags.map((tag) => (
-                <label key={tag.id} className="flex items-center gap-3">
-                  <input type="checkbox" name="tags" value={tag.id} className="rounded" />
+                <label key={tag.id} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="tags"
+                    value={tag.id}
+                    className="w-5 h-5 text-blue-600 bg-gray-800 border-gray-700 rounded focus:ring-blue-500"
+                  />
                   <span>{tag.name}</span>
                 </label>
               ))}
