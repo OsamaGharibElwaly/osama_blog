@@ -1,45 +1,46 @@
-// src/app/author-panel/page.tsx
-
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import prisma from "@/lib/db/client"; // عدل المسار لو مختلف
+import prisma from "@/lib/db/client";
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
+
+
+type AuthorPost = {
+  id: number;
+  title: string;
+  slug: string | null; 
+  status: string;
+  createdAt: Date;
+  comments: Array<{ id: number }>;
+};
 
 export default async function AuthorDashboard() {
   const session = await getServerSession(authOptions);
 
-  // تحقق من وجود الجلسة والـ user والـ id
   if (!session || !session.user || !session.user.id) {
-    redirect("/login"); // أو "/sign-in" حسب صفحة اللوجن بتاعتك
+    redirect("/login");
   }
 
-  // دلوقتي TypeScript عارف إن session.user.id موجود بالتأكيد
-  const authorId = Number(session.user.id); // أبسط من parseInt
+  const authorId = Number(session.user.id);
 
   if (isNaN(authorId)) {
     redirect("/login");
   }
 
-  // جلب بوستات المؤلف فقط
-  const posts = await prisma.post.findMany({
-    where: {
-      authorId: authorId,
-    },
+  const posts: AuthorPost[] = await prisma.post.findMany({
+    where: { authorId },
     orderBy: { createdAt: "desc" },
-    include: { comments: true },
+    include: { comments: { select: { id: true } } },
   });
 
-  // الإحصائيات
   const stats = {
     totalPosts: posts.length,
-    published: posts.filter((p) => p.status === "PUBLISHED").length,
-    drafts: posts.filter((p) => p.status === "DRAFT").length,
-    pending: posts.filter((p) => p.status === "PENDING").length,
+    published: posts.filter((p: AuthorPost) => p.status === "PUBLISHED").length,
+    drafts: posts.filter((p: AuthorPost) => p.status === "DRAFT").length,
+    pending: posts.filter((p: AuthorPost) => p.status === "PENDING").length,
   };
 
-  // قيم آمنة للعرض (fallback لو مفيش صورة أو اسم)
   const userName = session.user.name || "Author";
   const userImage = session.user.image || "https://placehold.co/40x40";
 
@@ -137,7 +138,7 @@ export default async function AuthorDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {posts.slice(0, 5).map((post) => (
+                  {posts.slice(0, 5).map((post: AuthorPost) => (
                     <tr key={post.id} className="border-b border-gray-700 hover:bg-gray-750 transition">
                       <td className="p-4">{post.title}</td>
                       <td className="p-4">
@@ -169,7 +170,7 @@ export default async function AuthorDashboard() {
                           Edit
                         </Link>
                         <Link
-                          href={`/posts/${post.slug}`}
+                          href={`/posts/${post.slug || post.id}`}
                           className="text-green-400 hover:underline"
                           target="_blank"
                           rel="noopener noreferrer"
