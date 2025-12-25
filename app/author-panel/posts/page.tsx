@@ -1,19 +1,26 @@
+// src/app/author-panel/posts/page.tsx
+
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/db/client";
 import Link from "next/link";
+import { format } from "date-fns";
 
+// نوع يدوي للبوست
 type AuthorPost = {
   id: number;
   title: string;
-  slug: string | null;  
+  slug: string | null;
+  shortDescription: string | null;
   status: string;
   createdAt: Date;
-  comments: Array<{ id: number }>;
+  updatedAt: Date;
+  tags: Array<{ tag: { id: number; name: string } }>;
+  comments: Array<{ id: number; status: string }>;
 };
 
-export default async function AuthorDashboard() {
+export default async function AuthorPostsPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user || session.user.role !== "AUTHOR") {
@@ -22,22 +29,20 @@ export default async function AuthorDashboard() {
 
   const authorId = Number(session.user.id);
 
-  if (isNaN(authorId) || !authorId) {
-    redirect("/login");
-  }
-
   const posts: AuthorPost[] = await prisma.post.findMany({
     where: { authorId },
+    include: {
+      tags: { include: { tag: { select: { id: true, name: true } } } },
+      comments: { select: { id: true, status: true } },
+    },
     orderBy: { createdAt: "desc" },
-    include: { comments: { select: { id: true } } },
   });
 
-  const stats = {
-    totalPosts: posts.length,
-    published: posts.filter((p: AuthorPost) => p.status === "PUBLISHED").length,
-    drafts: posts.filter((p: AuthorPost) => p.status === "DRAFT").length,
-    pending: posts.filter((p: AuthorPost) => p.status === "PENDING").length,
-  };
+  // حساب عدد التعليقات الموافق عليها لكل بوست
+  const postsWithApprovedComments = posts.map(post => ({
+    ...post,
+    approvedCommentsCount: post.comments.filter(c => c.status === "APPROVED").length,
+  }));
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
@@ -51,78 +56,43 @@ export default async function AuthorDashboard() {
         </div>
 
         <nav className="space-y-2 flex-1">
-          <Link href="/author-panel" className="block py-3 px-4 bg-green-600 rounded-lg font-medium">
+          <Link href="/author-panel" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Dashboard
           </Link>
-          <Link href="/author-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
+          <Link href="/author-panel/posts" className="block py-3 px-4 bg-green-600 rounded-lg font-medium">
             My Posts
           </Link>
           <Link href="/author-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             + New Post
           </Link>
         </nav>
-
-        {/* User Info + Logout */}
-        <div className="mt-auto pt-10 border-t border-gray-700">
-          <div className="flex items-center gap-3 mb-6">
-            <img
-              src={session.user.image || "https://placehold.co/40x40"}
-              alt="Author"
-              className="w-10 h-10 rounded-full object-cover"
-            />
-            <div>
-              <p className="font-medium">{session.user.name || "Author"}</p>
-              <p className="text-sm text-gray-400">Author</p>
-            </div>
-          </div>
-
-          <form action="/api/auth/signout" method="post">
-            <button
-              type="submit"
-              className="w-full text-left py-3 px-4 hover:bg-red-900/30 rounded-lg text-red-400 font-medium transition"
-            >
-              Logout
-            </button>
-          </form>
-        </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 p-8">
-        <h1 className="text-3xl font-bold mb-8">Welcome back, {session.user.name || "Author"}!</h1>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-          <div className="bg-gray-800 rounded-xl p-6">
-            <h3 className="text-gray-400">Total Posts</h3>
-            <p className="text-4xl font-bold mt-2">{stats.totalPosts}</p>
-          </div>
-          <div className="bg-gray-800 rounded-xl p-6">
-            <h3 className="text-gray-400">Published</h3>
-            <p className="text-4xl font-bold mt-2 text-green-500">{stats.published}</p>
-          </div>
-          <div className="bg-gray-800 rounded-xl p-6">
-            <h3 className="text-gray-400">Drafts</h3>
-            <p className="text-4xl font-bold mt-2 text-orange-500">{stats.drafts}</p>
-          </div>
-          <div className="bg-gray-800 rounded-xl p-6">
-            <h3 className="text-gray-400">Pending Review</h3>
-            <p className="text-4xl font-bold mt-2 text-yellow-500">{stats.pending}</p>
-          </div>
+      <main className="flex-1 p-10">
+        <div className="flex justify-between items-center mb-10">
+          <h1 className="text-4xl font-bold">My Posts ({posts.length})</h1>
+          <Link
+            href="/author-panel/posts/new"
+            className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition"
+          >
+            + Write New Post
+          </Link>
         </div>
 
-        {/* Recent Posts */}
-        <div>
-          <h2 className="text-2xl font-bold mb-6">Your Recent Posts</h2>
-          <div className="bg-gray-800 rounded-xl overflow-hidden shadow-lg">
-            {posts.length === 0 ? (
-              <p className="text-center py-16 text-gray-400 text-xl">
-                No posts yet.{" "}
-                <Link href="/author-panel/posts/new" className="text-green-400 hover:underline">
-                  Create your first post!
-                </Link>
-              </p>
-            ) : (
+        {posts.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-2xl text-gray-400 mb-8">You haven't written any posts yet.</p>
+            <Link
+              href="/author-panel/posts/new"
+              className="px-8 py-4 bg-green-600 hover:bg-green-700 rounded-lg font-medium text-lg transition inline-block"
+            >
+              Start Writing Your First Post
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* الجدول */}
+            <div className="bg-gray-800 rounded-xl overflow-hidden shadow-lg mb-12">
               <table className="w-full">
                 <thead className="bg-gray-700">
                   <tr>
@@ -134,10 +104,10 @@ export default async function AuthorDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {posts.slice(0, 5).map((post: AuthorPost) => (
+                  {posts.map((post) => (
                     <tr key={post.id} className="border-b border-gray-700 hover:bg-gray-750 transition">
                       <td className="p-4">
-                        <Link href={`/author-panel/posts/${post.id}/edit`} className="hover:text-green-400 transition">
+                        <Link href={`/author-panel/posts/${post.id}/edit`} className="hover:text-green-400">
                           {post.title}
                         </Link>
                       </td>
@@ -146,9 +116,9 @@ export default async function AuthorDashboard() {
                           className={`px-3 py-1 rounded-full text-xs font-medium ${
                             post.status === "PUBLISHED"
                               ? "bg-green-600"
-                              : post.status === "DRAFT"
-                              ? "bg-orange-600"
-                              : "bg-yellow-600"
+                              : post.status === "PENDING"
+                              ? "bg-yellow-600"
+                              : "bg-orange-600"
                           }`}
                         >
                           {post.status}
@@ -156,35 +126,79 @@ export default async function AuthorDashboard() {
                       </td>
                       <td className="p-4">{post.comments.length}</td>
                       <td className="p-4">
-                        {new Date(post.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {format(new Date(post.createdAt), "MMM dd, yyyy")}
                       </td>
                       <td className="p-4">
-                        <Link
-                          href={`/author-panel/posts/${post.id}/edit`}
-                          className="text-green-400 hover:underline mr-4"
-                        >
-                          Edit
-                        </Link>
-                        <Link
-                          href={`/posts/${post.slug || post.id}`}
-                          className="text-blue-400 hover:underline"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          View
-                        </Link>
+                        <div className="flex gap-4">
+                          <Link href={`/author-panel/posts/${post.id}/edit`} className="text-green-400 hover:underline">
+                            Edit
+                          </Link>
+                          <Link
+                            href={`/posts/${post.slug || post.id}`}
+                            target="_blank"
+                            className="text-blue-400 hover:underline"
+                          >
+                            View
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
-        </div>
+            </div>
+
+            {/* قسم إضافي تحت الجدول: تفاصيل أكثر */}
+            <div className="bg-gray-800 rounded-xl p-8 shadow-lg">
+              <h2 className="text-2xl font-bold mb-6">More Details About Your Posts</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {posts.map((post) => (
+                  <div key={post.id} className="bg-gray-750 rounded-lg p-5 hover:bg-gray-700 transition">
+                    <h3 className="text-lg font-semibold mb-2 line-clamp-2">{post.title}</h3>
+                    <p className="text-sm text-gray-400 mb-3">
+                      {post.shortDescription?.substring(0, 80) || "No description"}...
+                    </p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {post.tags.length > 0 ? (
+                        post.tags.map((t) => (
+                          <span
+                            key={t.tag.id}
+                            className="px-2 py-1 bg-gray-600 text-xs rounded"
+                          >
+                            {t.tag.name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-500">No tags</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-400 space-y-1">
+                      <div>Created: {format(new Date(post.createdAt), "MMM dd, yyyy")}</div>
+                      <div>Last updated: {format(new Date(post.updatedAt || post.createdAt), "MMM dd, yyyy")}</div>
+                      <div>Approved comments: {post.comments.filter(c => c.status === "APPROVED").length}</div>
+                      <div>Total comments: {post.comments.length}</div>
+                    </div>
+                    <div className="mt-4 flex gap-4">
+                      <Link
+                        href={`/author-panel/posts/${post.id}/edit`}
+                        className="text-green-400 hover:underline text-sm"
+                      >
+                        Edit
+                      </Link>
+                      <Link
+                        href={`/posts/${post.slug || post.id}`}
+                        target="_blank"
+                        className="text-blue-400 hover:underline text-sm"
+                      >
+                        View live
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

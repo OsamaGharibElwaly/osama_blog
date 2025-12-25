@@ -3,42 +3,139 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/db/client";
 import Link from "next/link";
-import { format } from "date-fns";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
-type AuthorPost = {
+
+type AdminCategory = {
   id: number;
-  title: string;
-  slug: string;
-  shortDescription: string;
-  thumbnailUrl: string | null;
-  status: string;
-  createdAt: Date;
-  tags: Array<{
-    tag: {
-      id: number;
-      name: string;
-    };
-  }>;
-  comments: Array<{ id: number }>;
+  name: string;
 };
 
-export default async function AuthorPostsPage() {
-  const session = await getServerSession(authOptions);
+type AdminTag = {
+  id: number;
+  name: string;
+};
 
+
+type PostCategoryRelation = {
+  category: {
+    id: number;
+  };
+};
+
+type PostTagRelation = {
+  tag: {
+    id: number;
+  };
+};
+
+export default async function AuthorEditPostPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
+  const postId = Number(id);
+
+  if (isNaN(postId)) {
+    redirect("/author-panel/posts");
+  }
+
+  const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== "AUTHOR") {
     redirect("/login");
   }
 
   const authorId = Number(session.user.id);
 
-  const posts: AuthorPost[] = await prisma.post.findMany({
-    where: { authorId },
-    include: {
-      tags: { include: { tag: true } },
-      comments: { select: { id: true } },
+  const post = await prisma.post.findFirst({
+    where: {
+      id: postId,
+      authorId,
     },
-    orderBy: { createdAt: "desc" },
+    include: {
+      categories: { include: { category: true } },
+      tags: { include: { tag: true } },
+    },
   });
+
+  if (!post) {
+    redirect("/author-panel/posts");
+  }
+
+  const categories: AdminCategory[] = await prisma.category.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  const tags: AdminTag[] = await prisma.tag.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  async function updatePost(formData: FormData) {
+    "use server";
+
+    const title = formData.get("title") as string;
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const shortDescription = formData.get("shortDescription") as string;
+    const content = formData.get("content") as string;
+    const status = formData.get("status") as "DRAFT" | "PENDING" | "PUBLISHED";
+
+    let thumbnailUrl: string | null = post?.thumbnailUrl ?? null;
+
+    const file = formData.get("thumbnail") as File | null;
+
+    if (file && file.size > 0) {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const filename = `${Date.now()}-${file.name.replace(/[^a-z0-9.-]/gi, "_")}`;
+      const uploadDir = path.join(process.cwd(), "public/uploads/posts");
+      await mkdir(uploadDir, { recursive: true });
+      await writeFile(path.join(uploadDir, filename), buffer);
+      thumbnailUrl = `/uploads/posts/${filename}`;
+    }
+
+    const categoryIds = (formData.getAll("categories") as string[])
+      .map(Number)
+      .filter((n) => !isNaN(n));
+
+    const tagIds = (formData.getAll("tags") as string[])
+      .map(Number)
+      .filter((n) => !isNaN(n));
+
+    await prisma.post.update({
+      where: { id: postId },
+      data: {
+        title,
+        slug,
+        shortDescription,
+        content,
+        thumbnailUrl,
+        status,
+        categories: {
+          deleteMany: {},
+          create: categoryIds.map((catId) => ({
+            category: { connect: { id: catId } },
+          })),
+        },
+        tags: {
+          deleteMany: {},
+          create: tagIds.map((tagId) => ({
+            tag: { connect: { id: tagId } },
+          })),
+        },
+      },
+    });
+
+    redirect("/author-panel/posts");
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
@@ -55,7 +152,7 @@ export default async function AuthorPostsPage() {
           <Link href="/author-panel" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Dashboard
           </Link>
-          <Link href="/author-panel/posts" className="block py-3 px-4 bg-green-600 rounded-lg font-medium">
+          <Link href="/author-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             My Posts
           </Link>
           <Link href="/author-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
@@ -65,97 +162,130 @@ export default async function AuthorPostsPage() {
       </aside>
 
       <main className="flex-1 p-10">
-        <div className="flex justify-between items-center mb-10">
-          <h1 className="text-4xl font-bold">My Posts ({posts.length})</h1>
-          <Link
-            href="/author-panel/posts/new"
-            className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition"
-          >
-            + Write New Post
-          </Link>
-        </div>
+        <h1 className="text-4xl font-bold mb-8">Edit Post: {post.title}</h1>
 
-        {posts.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-2xl text-gray-400 mb-8">You haven't written any posts yet.</p>
-            <Link
-              href="/author-panel/posts/new"
-              className="px-8 py-4 bg-green-600 hover:bg-green-700 rounded-lg font-medium text-lg transition inline-block"
+        <form action={updatePost} className="max-w-4xl space-y-8">
+          <div>
+            <label className="block text-sm font-medium mb-2">Title</label>
+            <input
+              name="title"
+              type="text"
+              required
+              defaultValue={post.title}
+              className="w-full px-4 py-3 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Short Description</label>
+            <textarea
+              name="shortDescription"
+              required
+              rows={4}
+              defaultValue={post.shortDescription}
+              className="w-full px-4 py-3 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Content (Markdown supported)</label>
+            <textarea
+              name="content"
+              required
+              rows={16}
+              defaultValue={post.content}
+              className="w-full px-4 py-3 bg-gray-800 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Current Thumbnail</label>
+            {post.thumbnailUrl ? (
+              <img
+                src={post.thumbnailUrl}
+                alt="Current thumbnail"
+                className="w-96 h-64 object-cover rounded-lg mb-4"
+              />
+            ) : (
+              <div className="w-96 h-64 bg-gray-700 rounded-lg mb-4 flex items-center justify-center text-gray-500">
+                No thumbnail
+              </div>
+            )}
+            <input
+              name="thumbnail"
+              type="file"
+              accept="image/*"
+              className="w-full px-4 py-3 bg-gray-800 rounded-lg file:bg-green-600 file:text-white file:border-0 file:px-4 file:py-2 file:rounded"
+            />
+            <p className="text-sm text-gray-400 mt-2">Leave empty to keep current image</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Status</label>
+            <select
+              name="status"
+              defaultValue={post.status}
+              className="w-full px-4 py-3 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
             >
-              Start Writing Your First Post
+              <option value="DRAFT">Draft</option>
+              <option value="PENDING">Pending Review</option>
+              <option value="PUBLISHED">Published</option>
+            </select>
+          </div>
+
+          {/* Categories */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Categories</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {categories.map((cat) => (
+                <label key={cat.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="categories"
+                    value={cat.id}
+                    defaultChecked={post.categories.some((pc: PostCategoryRelation) => pc.category.id === cat.id)}
+                    className="w-5 h-5 text-green-600 bg-gray-800 rounded focus:ring-green-600"
+                  />
+                  <span>{cat.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Tags</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {tags.map((tag) => (
+                <label key={tag.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="tags"
+                    value={tag.id}
+                    defaultChecked={post.tags.some((pt: PostTagRelation) => pt.tag.id === tag.id)}
+                    className="w-5 h-5 text-green-600 bg-gray-800 rounded focus:ring-green-600"
+                  />
+                  <span>{tag.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-4 pt-6">
+            <button
+              type="submit"
+              className="px-8 py-4 bg-green-600 hover:bg-green-700 rounded-lg font-medium text-lg transition"
+            >
+              Update Post
+            </button>
+            <Link
+              href="/author-panel/posts"
+              className="px-8 py-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium text-lg transition"
+            >
+              Cancel
             </Link>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                className="bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition duration-300"
-              >
-                <div className="h-48 overflow-hidden">
-                  <img
-                    src={post.thumbnailUrl || "https://placehold.co/600x400"}
-                    alt={post.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xl font-bold line-clamp-2">{post.title}</h3>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        post.status === "PUBLISHED"
-                          ? "bg-green-600"
-                          : post.status === "PENDING"
-                          ? "bg-yellow-600"
-                          : "bg-orange-600"
-                      }`}
-                    >
-                      {post.status}
-                    </span>
-                  </div>
-
-                  <p className="text-gray-400 text-sm line-clamp-3 mb-4">
-                    {post.shortDescription || "No description available."}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {post.tags.map((t) => (
-                      <span
-                        key={t.tag.id}
-                        className="px-3 py-1 bg-gray-700 text-gray-300 text-xs rounded-full"
-                      >
-                        {t.tag.name}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span>{format(new Date(post.createdAt), "MMM dd, yyyy")}</span>
-                    <span>{post.comments.length} Comments</span>
-                  </div>
-
-                  <div className="flex gap-4 mt-6">
-                    <Link
-                      href={`/author-panel/posts/${post.id}/edit`}
-                      className="flex-1 text-center py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition"
-                    >
-                      Edit
-                    </Link>
-                    <Link
-                      href={`/posts/${post.slug}`}
-                      target="_blank"
-                      className="flex-1 text-center py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition"
-                    >
-                      View
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        </form>
       </main>
     </div>
   );
