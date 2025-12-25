@@ -1,35 +1,46 @@
-'use client';  // هذا السطر لتحديد أن المكون يعمل على العميل
+// components/PostActions.tsx
+'use client';
 
 import { useState } from 'react';
 
-// تعريف props بشكل صحيح
 type PostActionsProps = {
-  authorId: number; // authorId يجب أن يكون جزءًا من props
-  deleteAuthor: (authorId: number) => Promise<void>; // دالة الحذف يجب أن تأخذ authorId
+  authorId: number;
 };
 
-const PostActions = ({ authorId, deleteAuthor }: PostActionsProps) => {
-  const [isDeleting, setIsDeleting] = useState(false);
+const PostActions = ({ authorId }: PostActionsProps) => {
+  const [loading, setLoading] = useState(false);
 
-  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!confirm("Are you sure you want to delete this author?")) {
-      e.preventDefault();
-      return;
+  const deleteAuthor = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/authors/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ authorId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete author');
+      }
+
+      alert('Author deleted successfully');
+      window.location.reload(); // Or navigate away after successful deletion
+    } catch (error) {
+      alert(error|| 'Something went wrong');
+    } finally {
+      setLoading(false);
     }
-
-    setIsDeleting(true);
-    await deleteAuthor(authorId); // استدعاء الدالة مع الـ authorId
-    setIsDeleting(false);
   };
 
   return (
     <button
-      type="button"
-      onClick={handleDelete}
-      className={`text-red-400 hover:underline ${isDeleting ? 'opacity-50' : ''}`}
-      disabled={isDeleting}
+      onClick={deleteAuthor}
+      disabled={loading}
+      className="text-red-400 hover:underline"
     >
-      {isDeleting ? 'Deleting...' : 'Delete'}
+      {loading ? 'Deleting...' : 'Delete'}
     </button>
   );
 };

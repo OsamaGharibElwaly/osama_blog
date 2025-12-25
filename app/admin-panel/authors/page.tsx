@@ -1,3 +1,4 @@
+// pages/admin-panel/authors/index.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -28,12 +29,6 @@ export default async function AuthorsPage() {
     },
     orderBy: { createdAt: "desc" },
   });
-
-  // دالة الحذف
-  const deleteAuthor = async (authorId: number) => {
-    await prisma.author.delete({ where: { id: authorId } });
-    redirect("/admin-panel/authors");
-  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
@@ -71,9 +66,7 @@ export default async function AuthorsPage() {
                     <td className="p-4">{author.email}</td>
                     <td className="p-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          author.role.name === "ADMIN" ? "bg-purple-600" : "bg-green-600"
-                        }`}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${author.role.name === "ADMIN" ? "bg-purple-600" : "bg-green-600"}`}
                       >
                         {author.role.name}
                       </span>
@@ -87,8 +80,7 @@ export default async function AuthorsPage() {
                         >
                           Edit
                         </Link>
-                        {/* استخدم PostActions هنا */}
-                        <PostActions authorId={author.id} deleteAuthor={deleteAuthor} />
+                        <PostActions authorId={author.id} />
                       </div>
                     </td>
                   </tr>
