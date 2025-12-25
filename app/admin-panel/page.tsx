@@ -71,7 +71,7 @@ export default async function AdminDashboard() {
           <Link href="/admin-panel/authors" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Authors
           </Link>
-          <Link href="/admin-panel/categories" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
+          <Link href="/admin-panel/category" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Categories
           </Link>
           <Link href="/admin-panel/tags" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
