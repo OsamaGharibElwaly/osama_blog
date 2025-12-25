@@ -1,20 +1,19 @@
-'use client';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import prisma from "@/lib/db/client"; 
+import prisma from "@/lib/db/client";
 import Link from "next/link";
-
+import PostActions from "@/components/PostActions";
 
 type AdminPost = {
   id: number;
   title: string;
-  status: string; 
+  status: string;
   createdAt: Date;
   author: {
     name: string;
   };
-  comments: Array<{ id: number }>; 
+  comments: Array<{ id: number }>;
 };
 
 export default async function PostsListPage() {
@@ -23,28 +22,22 @@ export default async function PostsListPage() {
     redirect("/login");
   }
 
-  
+  // جلب البيانات من قاعدة البيانات
   const posts: AdminPost[] = await prisma.post.findMany({
     include: {
-      author: { select: { name: true } }, 
-      comments: { select: { id: true } }, 
+      author: { select: { name: true } },
+      comments: { select: { id: true } },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  async function deletePost(formData: FormData) {
-    "use server";
-
-    const postId = Number(formData.get("postId"));
-    if (isNaN(postId)) return;
-
-    
+  // دالة لحذف البوست
+  const deletePost = async (postId: number) => {
     await prisma.postCategory.deleteMany({ where: { postId } });
     await prisma.postTag.deleteMany({ where: { postId } });
     await prisma.post.delete({ where: { id: postId } });
-
     redirect("/admin-panel/posts");
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
@@ -128,21 +121,7 @@ export default async function PostsListPage() {
                       </Link>
                     </td>
                     <td className="p-4">{post.author.name}</td>
-                    <td className="p-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          post.status === "PUBLISHED"
-                            ? "bg-green-600"
-                            : post.status === "DRAFT"
-                            ? "bg-orange-600"
-                            : post.status === "PENDING"
-                            ? "bg-yellow-600"
-                            : "bg-red-600"
-                        }`}
-                      >
-                        {post.status}
-                      </span>
-                    </td>
+                    <td className="p-4">{post.status}</td>
                     <td className="p-4">{post.comments.length}</td>
                     <td className="p-4">
                       {new Date(post.createdAt).toLocaleDateString("en-US", {
@@ -159,20 +138,8 @@ export default async function PostsListPage() {
                         >
                           Edit
                         </Link>
-                        <form action={deletePost}>
-                          <input type="hidden" name="postId" value={post.id} />
-                          <button
-                            type="submit"
-                            className="text-red-400 hover:underline"
-                            onClick={(e) => {
-                              if (!confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </form>
+                        {/* استخدام Client Component هنا */}
+                        <PostActions postId={post.id} deletePost={deletePost} />
                       </div>
                     </td>
                   </tr>
