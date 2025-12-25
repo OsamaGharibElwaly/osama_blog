@@ -4,14 +4,13 @@ import { redirect } from "next/navigation";
 import prisma from "@/lib/db/client";
 import Link from "next/link";
 
-
 type AuthorPost = {
   id: number;
   title: string;
-  slug: string;  
+  slug: string | null;  
   status: string;
   createdAt: Date;
-  comments: Array<{ id: number }>; 
+  comments: Array<{ id: number }>;
 };
 
 export default async function AuthorDashboard() {
@@ -27,11 +26,10 @@ export default async function AuthorDashboard() {
     redirect("/login");
   }
 
-  
   const posts: AuthorPost[] = await prisma.post.findMany({
     where: { authorId },
     orderBy: { createdAt: "desc" },
-    include: { comments: { select: { id: true } } }, 
+    include: { comments: { select: { id: true } } },
   });
 
   const stats = {
@@ -136,7 +134,7 @@ export default async function AuthorDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {posts.slice(0, 5).map((post) => (
+                  {posts.slice(0, 5).map((post: AuthorPost) => (
                     <tr key={post.id} className="border-b border-gray-700 hover:bg-gray-750 transition">
                       <td className="p-4">
                         <Link href={`/author-panel/posts/${post.id}/edit`} className="hover:text-green-400 transition">
@@ -167,15 +165,15 @@ export default async function AuthorDashboard() {
                       <td className="p-4">
                         <Link
                           href={`/author-panel/posts/${post.id}/edit`}
-                          className="text-green-400 hover:underline"
+                          className="text-green-400 hover:underline mr-4"
                         >
                           Edit
                         </Link>
-                        {" | "}
                         <Link
                           href={`/posts/${post.slug || post.id}`}
                           className="text-blue-400 hover:underline"
                           target="_blank"
+                          rel="noopener noreferrer"
                         >
                           View
                         </Link>
