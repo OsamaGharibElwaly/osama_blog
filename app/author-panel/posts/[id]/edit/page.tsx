@@ -1,5 +1,3 @@
-// src/app/author-panel/posts/[id]/edit/page.tsx
-
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -8,7 +6,7 @@ import Link from "next/link";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
-// أنواع يدوية للـ Category و Tag
+
 type AdminCategory = {
   id: number;
   name: string;
@@ -17,6 +15,19 @@ type AdminCategory = {
 type AdminTag = {
   id: number;
   name: string;
+};
+
+// نوع للـ PostCategory و PostTag (العلاقات)
+type PostCategoryRelation = {
+  category: {
+    id: number;
+  };
+};
+
+type PostTagRelation = {
+  tag: {
+    id: number;
+  };
 };
 
 export default async function AuthorEditPostPage({
@@ -39,7 +50,6 @@ export default async function AuthorEditPostPage({
 
   const authorId = Number(session.user.id);
 
-  // جلب البوست مع التأكد من أنه ملك المؤلف
   const post = await prisma.post.findFirst({
     where: {
       id: postId,
@@ -65,7 +75,6 @@ export default async function AuthorEditPostPage({
     orderBy: { name: "asc" },
   });
 
-  // Server Action لتحديث البوست
   async function updatePost(formData: FormData) {
     "use server";
 
@@ -79,7 +88,6 @@ export default async function AuthorEditPostPage({
     const content = formData.get("content") as string;
     const status = formData.get("status") as "DRAFT" | "PENDING" | "PUBLISHED";
 
-    
     let thumbnailUrl: string | null = post?.thumbnailUrl ?? null;
 
     const file = formData.get("thumbnail") as File | null;
@@ -235,7 +243,7 @@ export default async function AuthorEditPostPage({
                     type="checkbox"
                     name="categories"
                     value={cat.id}
-                    defaultChecked={post.categories.some((pc) => pc.category.id === cat.id)}
+                    defaultChecked={post.categories.some((pc: PostCategoryRelation) => pc.category.id === cat.id)}
                     className="w-5 h-5 text-green-600 bg-gray-800 rounded focus:ring-green-600"
                   />
                   <span>{cat.name}</span>
@@ -254,7 +262,7 @@ export default async function AuthorEditPostPage({
                     type="checkbox"
                     name="tags"
                     value={tag.id}
-                    defaultChecked={post.tags.some((pt) => pt.tag.id === tag.id)}
+                    defaultChecked={post.tags.some((pt: PostTagRelation) => pt.tag.id === tag.id)}
                     className="w-5 h-5 text-green-600 bg-gray-800 rounded focus:ring-green-600"
                   />
                   <span>{tag.name}</span>
