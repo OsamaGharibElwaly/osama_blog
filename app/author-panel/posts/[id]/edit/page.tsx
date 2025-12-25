@@ -3,10 +3,21 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import prisma from "@/lib/db/client"; 
+import prisma from "@/lib/db/client";
 import Link from "next/link";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+
+// أنواع يدوية للـ Category و Tag
+type AdminCategory = {
+  id: number;
+  name: string;
+};
+
+type AdminTag = {
+  id: number;
+  name: string;
+};
 
 export default async function AuthorEditPostPage({
   params,
@@ -41,11 +52,18 @@ export default async function AuthorEditPostPage({
   });
 
   if (!post) {
-    redirect("/author-panel/posts"); // البوست مش موجود أو مش ملكك
+    redirect("/author-panel/posts");
   }
 
-  const categories = await prisma.category.findMany();
-  const tags = await prisma.tag.findMany();
+  const categories: AdminCategory[] = await prisma.category.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  const tags: AdminTag[] = await prisma.tag.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 
   // Server Action لتحديث البوست
   async function updatePost(formData: FormData) {
@@ -56,11 +74,12 @@ export default async function AuthorEditPostPage({
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
+
     const shortDescription = formData.get("shortDescription") as string;
     const content = formData.get("content") as string;
-    const status = formData.get("status") as "DRAFT" | "PENDING" | "PUBLISHED"; // لو عايز تضيف PUBLISHED
+    const status = formData.get("status") as "DRAFT" | "PENDING" | "PUBLISHED";
 
-    // دلوقتي post موجود بالتأكيد (خارج الـ action بس داخل الـ page)
+    
     let thumbnailUrl: string | null = post?.thumbnailUrl ?? null;
 
     const file = formData.get("thumbnail") as File | null;
@@ -68,20 +87,17 @@ export default async function AuthorEditPostPage({
     if (file && file.size > 0) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-
-      // اسم ملف فريد
       const filename = `${Date.now()}-${file.name.replace(/[^a-z0-9.-]/gi, "_")}`;
       const uploadDir = path.join(process.cwd(), "public/uploads/posts");
-
       await mkdir(uploadDir, { recursive: true });
       await writeFile(path.join(uploadDir, filename), buffer);
-
       thumbnailUrl = `/uploads/posts/${filename}`;
     }
 
     const categoryIds = (formData.getAll("categories") as string[])
       .map(Number)
       .filter((n) => !isNaN(n));
+
     const tagIds = (formData.getAll("tags") as string[])
       .map(Number)
       .filter((n) => !isNaN(n));
@@ -96,7 +112,7 @@ export default async function AuthorEditPostPage({
         thumbnailUrl,
         status,
         categories: {
-          deleteMany: {}, // امسح القديمة
+          deleteMany: {},
           create: categoryIds.map((catId) => ({
             category: { connect: { id: catId } },
           })),
@@ -115,7 +131,27 @@ export default async function AuthorEditPostPage({
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
-      {/* Sidebar - نفس اللي في الـ dashboard أو new post */}
+      {/* Sidebar */}
+      <aside className="w-64 bg-gray-800 p-6 flex flex-col">
+        <div className="flex items-center gap-3 mb-10">
+          <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center text-xl font-bold">
+            A
+          </div>
+          <h2 className="text-xl font-bold">Author Panel</h2>
+        </div>
+
+        <nav className="space-y-2 flex-1">
+          <Link href="/author-panel" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
+            Dashboard
+          </Link>
+          <Link href="/author-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
+            My Posts
+          </Link>
+          <Link href="/author-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
+            + New Post
+          </Link>
+        </nav>
+      </aside>
 
       <main className="flex-1 p-10">
         <h1 className="text-4xl font-bold mb-8">Edit Post: {post.title}</h1>
@@ -185,11 +221,11 @@ export default async function AuthorEditPostPage({
             >
               <option value="DRAFT">Draft</option>
               <option value="PENDING">Pending Review</option>
-              <option value="PUBLISHED">Published</option> {/* لو عايز المؤلف ينشر بنفسه */}
+              <option value="PUBLISHED">Published</option>
             </select>
           </div>
 
-          {/* Categories Multi-select */}
+          {/* Categories */}
           <div>
             <label className="block text-sm font-medium mb-2">Categories</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -208,7 +244,7 @@ export default async function AuthorEditPostPage({
             </div>
           </div>
 
-          {/* Tags Multi-select */}
+          {/* Tags */}
           <div>
             <label className="block text-sm font-medium mb-2">Tags</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
