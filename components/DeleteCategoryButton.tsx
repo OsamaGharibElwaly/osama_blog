@@ -1,33 +1,51 @@
-// components/DeleteCategoryButton.tsx
-'use client';
-
-import React from 'react';
+'use client'; // Add this to indicate that it's a client-side component
+import React, { useState } from 'react';
 
 type DeleteCategoryButtonProps = {
   catId: number;
 };
 
 const DeleteCategoryButton = ({ catId }: DeleteCategoryButtonProps) => {
-  const handleDelete = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleDelete = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (confirm("Are you sure you want to delete this category?")) {
-      // Submit the form after confirmation
-      const form = document.getElementById(`delete-form-${catId}`) as HTMLFormElement;
-      form.submit();
+    if (!confirm("Are you sure you want to delete this category?")) return;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/category/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ catId }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('Category deleted successfully');
+        window.location.reload(); // Or use your preferred navigation method
+      } else {
+        alert(result.message || 'Something went wrong');
+      }
+    } catch (error) {
+      alert('Failed to delete category');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <form id={`delete-form-${catId}`} action="/api/authors/delete" method="POST">
-      <input type="hidden" name="catId" value={catId} />
-      <button
-        type="submit"
-        onClick={handleDelete}
-        className="text-red-400 hover:underline"
-      >
-        Delete
-      </button>
-    </form>
+    <button
+      onClick={handleDelete}
+      disabled={loading}
+      className="text-red-400 hover:underline"
+    >
+      {loading ? 'Deleting...' : 'Delete'}
+    </button>
   );
 };
 
