@@ -1,10 +1,44 @@
 import Header from "@/components/layout/Header";
-import prisma from "../../../lib/db/client";
+import prisma from "@/lib/db/client";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm"; 
-import rehypeRaw from "rehype-raw"; 
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { format } from "date-fns";
+
+
+type PublicPostDetail = {
+  id: number;
+  title: string;
+  slug: string;
+  shortDescription: string;
+  content: string;
+  thumbnailUrl: string | null;
+  createdAt: Date;
+  author: {
+    name: string;
+    bio: string | null;
+    profileImageUrl: string | null;
+  };
+  tags: Array<{
+    tag: {
+      id: number;
+      name: string;
+    };
+  }>;
+  categories: Array<{
+    category: {
+      id: number;
+      name: string;
+    };
+  }>;
+  comments: Array<{
+    id: number;
+    authorName: string | null;
+    content: string;
+    createdAt: Date;
+  }>;
+};
 
 export default async function PostDetailPage({
   params,
@@ -13,14 +47,15 @@ export default async function PostDetailPage({
 }) {
   const { slug } = await params;
 
-  const post = await prisma.post.findUnique({
+  const post: PublicPostDetail | null = await prisma.post.findUnique({
     where: { slug, status: "PUBLISHED" },
     include: {
-      author: true,
-      tags: { include: { tag: true } },
-      categories: { include: { category: true } },
+      author: { select: { name: true, bio: true, profileImageUrl: true } },
+      tags: { include: { tag: { select: { id: true, name: true } } } },
+      categories: { include: { category: { select: { id: true, name: true } } } },
       comments: {
         where: { status: "APPROVED" },
+        select: { id: true, authorName: true, content: true, createdAt: true },
         orderBy: { createdAt: "desc" },
       },
     },
@@ -75,10 +110,7 @@ export default async function PostDetailPage({
 
           {/* Content with Markdown + Tailwind Prose */}
           <div className="prose prose-lg dark:prose-invert max-w-none mb-16">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeRaw]}
-            >
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
               {post.content}
             </ReactMarkdown>
           </div>
@@ -102,26 +134,30 @@ export default async function PostDetailPage({
             </div>
           </div>
 
-          {/* Comments (simple) */}
+          {/* Comments */}
           <div className="mt-16">
             <h3 className="text-3xl font-bold mb-8">Comments ({post.comments.length})</h3>
             <div className="space-y-6">
-              {post.comments.map((comment) => (
-                <div key={comment.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {comment.authorName?.charAt(0) || "A"}
+              {post.comments.length === 0 ? (
+                <p className="text-center text-gray-500 py-10">No comments yet. Be the first!</p>
+              ) : (
+                post.comments.map((comment) => (
+                  <div key={comment.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {comment.authorName?.charAt(0) || "A"}
+                      </div>
+                      <div>
+                        <p className="font-medium">{comment.authorName || "Anonymous"}</p>
+                        <p className="text-sm text-gray-500">
+                          {format(new Date(comment.createdAt), "MMMM dd, yyyy")}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{comment.authorName || "Anonymous"}</p>
-                      <p className="text-sm text-gray-500">
-                        {format(new Date(comment.createdAt), "MMMM dd, yyyy")}
-                      </p>
-                    </div>
+                    <p className="text-gray-700 dark:text-gray-300">{comment.content}</p>
                   </div>
-                  <p className="text-gray-700 dark:text-gray-300">{comment.content}</p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
