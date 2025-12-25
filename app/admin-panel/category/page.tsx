@@ -1,9 +1,10 @@
+// pages/admin-panel/category/index.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/db/client"; 
 import Link from "next/link";
-
+import DeleteCategoryButton from "@/components/DeleteCategoryButton"; // Import the client component
 
 type AdminCategory = {
   id: number;
@@ -25,54 +26,37 @@ export default async function CategoriesPage() {
     orderBy: { name: "asc" },
   });
 
-  async function deleteCategory(formData: FormData) {
-    "use server";
-    const catId = Number(formData.get("catId"));
-    if (isNaN(catId)) return;
-
-    await prisma.category.delete({ where: { id: catId } });
-    redirect("/admin-panel/category");
-  }
-
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
-      {/* Sidebar موحد */}
+      {/* Sidebar */}
       <aside className="w-64 bg-gray-800 p-6">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-xl font-bold">
-            A
-          </div>
-          <h2 className="text-xl font-bold">Admin Panel</h2>
-        </div>
-        <nav className="space-y-2">
-          <Link href="/admin-panel" className="block py-3 px-4 rounded-lg font-medium">
+        <Link href="/admin-panel" className="block py-3 px-4 rounded-lg font-medium">
             Dashboard
           </Link>
-          <Link href="/admin-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/posts" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Posts
           </Link>
-          <Link href="/admin-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             + New Post
           </Link>
-          <Link href="/admin-panel/authors" className="block py-3 px-4 rounded-lg">
+          <Link href="/admin-panel/authors" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Authors
           </Link>
-          <Link href="/admin-panel/category" className="block py-3 px-4 bg-blue-600 rounded-lg">
+          <Link href="/admin-panel/category" className="block py-3 px-4 hover:bg-gray-700 bg-blue-600 rounded-lg transition">
             Categories
           </Link>
-          <Link href="/admin-panel/tags" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/tags" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Tags
           </Link>
-          <Link href="/admin-panel/comments" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/comments" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Comments
           </Link>
-          <Link href="/admin-panel/contact-message" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/contact-messages" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition">
             Contact Messages
           </Link>
-          <Link href="/admin-panel/settings" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
+          <Link href="/admin-panel/settings" className="block py-3 px-4 hover:bg-gray-700 rounded-lg transition mt-8">
             Settings
           </Link>
-        </nav>
       </aside>
 
       <main className="flex-1 p-10">
@@ -110,20 +94,8 @@ export default async function CategoriesPage() {
                         >
                           Edit
                         </Link>
-                        <form action={deleteCategory}>
-                          <input type="hidden" name="catId" value={cat.id} />
-                          <button
-                            type="submit"
-                            className="text-red-400 hover:underline"
-                            onClick={(e) => {
-                              if (!confirm("Are you sure you want to delete this category?")) {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </form>
+                        {/* Use the DeleteCategoryButton component here */}
+                        <DeleteCategoryButton catId={cat.id} />
                       </div>
                     </td>
                   </tr>
