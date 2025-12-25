@@ -4,18 +4,36 @@ import { useState } from "react";
 
 type PostActionsProps = {
   postId: number;
-  deletePost: (postId: number) => void;
 };
 
-const PostActions = ({ postId, deletePost }: PostActionsProps) => {
-  const [confirmDelete, setConfirmDelete] = useState(false);
+const PostActions = ({ postId }: PostActionsProps) => {
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
       e.preventDefault();
       return;
     }
-    deletePost(postId);  // Call the delete function passed as prop
+
+    setIsDeleting(true);
+
+    // ارسال طلب حذف عبر الـ API
+    const response = await fetch("/api/posts/delete", {
+      method: "DELETE",
+      body: JSON.stringify({ postId }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok) {
+      alert("Post deleted successfully");
+      window.location.reload(); // أو إعادة التوجيه للمكان الذي تحتاجه
+    } else {
+      alert("Error deleting post");
+    }
+
+    setIsDeleting(false);
   };
 
   return (
@@ -23,8 +41,9 @@ const PostActions = ({ postId, deletePost }: PostActionsProps) => {
       <button
         onClick={handleDelete}
         className="text-red-400 hover:underline"
+        disabled={isDeleting}
       >
-        Delete
+        {isDeleting ? "Deleting..." : "Delete"}
       </button>
     </div>
   );

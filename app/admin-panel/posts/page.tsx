@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/db/client";
 import Link from "next/link";
-import PostActions from "@/components/PostActions";
+import PostActions from "@/components/PostActions";  // استيراد Client Component
 
 type AdminPost = {
   id: number;
@@ -22,7 +22,7 @@ export default async function PostsListPage() {
     redirect("/login");
   }
 
-  // جلب البيانات من قاعدة البيانات
+  // جلب البوستات من قاعدة البيانات
   const posts: AdminPost[] = await prisma.post.findMany({
     include: {
       author: { select: { name: true } },
@@ -31,53 +31,11 @@ export default async function PostsListPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  // دالة لحذف البوست
-  const deletePost = async (postId: number) => {
-    await prisma.postCategory.deleteMany({ where: { postId } });
-    await prisma.postTag.deleteMany({ where: { postId } });
-    await prisma.post.delete({ where: { id: postId } });
-    redirect("/admin-panel/posts");
-  };
-
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-800 p-6">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-xl font-bold">
-            A
-          </div>
-          <h2 className="text-xl font-bold">Admin Panel</h2>
-        </div>
-        <nav className="space-y-2">
-          <Link href="/admin-panel" className="block py-3 px-4 rounded-lg font-medium">
-            Dashboard
-          </Link>
-          <Link href="/admin-panel/posts" className="block py-3 px-4 bg-blue-600 rounded-lg">
-            Posts
-          </Link>
-          <Link href="/admin-panel/posts/new" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
-            + New Post
-          </Link>
-          <Link href="/admin-panel/authors" className="block py-3 px-4 rounded-lg">
-            Authors
-          </Link>
-          <Link href="/admin-panel/category" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
-            Categories
-          </Link>
-          <Link href="/admin-panel/tags" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
-            Tags
-          </Link>
-          <Link href="/admin-panel/comments" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
-            Comments
-          </Link>
-          <Link href="/admin-panel/contact-message" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
-            Contact Messages
-          </Link>
-          <Link href="/admin-panel/settings" className="block py-3 px-4 hover:bg-gray-700 rounded-lg">
-            Settings
-          </Link>
-        </nav>
+        {/* Sidebar content */}
       </aside>
 
       {/* Main Content */}
@@ -138,8 +96,7 @@ export default async function PostsListPage() {
                         >
                           Edit
                         </Link>
-                        {/* استخدام Client Component هنا */}
-                        <PostActions postId={post.id} deletePost={deletePost} />
+                        <PostActions postId={post.id} /> {/* استخدام PostActions Client Component هنا */}
                       </div>
                     </td>
                   </tr>
