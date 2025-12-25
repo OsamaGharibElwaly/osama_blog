@@ -1,9 +1,47 @@
-// src/app/category/page.tsx
-
 import Header from "@/components/layout/Header";
-import prisma from "@/lib/db/client"; // عدل المسار لو مختلف عندك
+import prisma from "@/lib/db/client";
+import { PostStatus } from "@/generated/prisma/client";
 import Link from "next/link";
-import { PostStatus } from "@prisma/client"; // مهم جدًا عشان الـ enum
+
+
+type PublicCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  _count: {
+    posts: number;
+  };
+};
+
+type PublicPost = {
+  id: number;
+  title: string;
+  slug: string;
+  shortDescription: string;
+  thumbnailUrl: string | null;
+  createdAt: Date;
+  author: {
+    name: string;
+    profileImageUrl: string | null;
+  };
+  tags: Array<{
+    tag: {
+      id: number;
+      name: string;
+      slug: string;
+    };
+  }>;
+  comments: Array<{ id: number }>;
+};
+
+type PublicTag = {
+  id: number;
+  name: string;
+  slug: string;
+  _count: {
+    posts: number;
+  };
+};
 
 export default async function CategoryPage({
   searchParams,
@@ -15,13 +53,12 @@ export default async function CategoryPage({
   const currentPage = Number(page) || 1;
   const postsPerPage = 6;
 
-  // جلب كل الكاتيجوريز مع عدد البوستات في كل واحدة
-  const categories = await prisma.category.findMany({
-    include: { 
-      _count: { 
-        select: { 
+  const categories: PublicCategory[] = await prisma.category.findMany({
+    include: {
+      _count: {
+        select: {
           posts: {
-            where: { post: { status: PostStatus.PUBLISHED } },
+            where: { post: { status: "PUBLISHED" } },
           },
         },
       },
@@ -29,44 +66,45 @@ export default async function CategoryPage({
     orderBy: { name: "asc" },
   });
 
-  // شرط الـ where لفلترة البوستات المنشورة فقط
-  const where = selectedSlug
-    ? {
-        status: PostStatus.PUBLISHED,
-        categories: {
-          some: {
-            category: {
-              slug: selectedSlug,
-            },
+  const postWhere = selectedSlug
+  ? {
+      status: PostStatus.PUBLISHED, 
+      categories: {
+        some: {
+          category: {
+            slug: selectedSlug,
           },
         },
-      }
-    : { status: PostStatus.PUBLISHED };
+      },
+    }
+  : { status: PostStatus.PUBLISHED }; 
 
-  // عدد البوستات الكلي للـ pagination
-  const totalPosts = await prisma.post.count({ where });
+  const totalPosts = await prisma.post.count({ where: postWhere });
   const totalPages = Math.ceil(totalPosts / postsPerPage);
 
-  // جلب البوستات المنشورة مع pagination
+  
   const posts = await prisma.post.findMany({
-    where,
+    where: postWhere,
     include: {
       author: { select: { name: true, profileImageUrl: true } },
-      tags: { include: { tag: true } },
-      comments: true,
+      tags: {
+        include: {
+          tag: { select: { id: true, name: true, slug: true } },
+        },
+      },
+      comments: { select: { id: true } },
     },
     orderBy: { createdAt: "desc" },
     skip: (currentPage - 1) * postsPerPage,
     take: postsPerPage,
-  });
+  }) as unknown as PublicPost[];
 
-  // أكثر 10 تاجات شيوعًا
-  const topTags = await prisma.tag.findMany({
-    include: { 
-      _count: { 
-        select: { 
+  const topTags: PublicTag[] = await prisma.tag.findMany({
+    include: {
+      _count: {
+        select: {
           posts: {
-            where: { post: { status: PostStatus.PUBLISHED } },
+            where: { post: { status: "PUBLISHED" } },
           },
         },
       },
@@ -111,7 +149,7 @@ export default async function CategoryPage({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left: Posts List */}
+            {/* Posts List */}
             <div className="lg:col-span-2 space-y-8">
               {posts.length === 0 ? (
                 <p className="text-center text-gray-500 dark:text-gray-400 py-20 text-2xl">
@@ -121,7 +159,7 @@ export default async function CategoryPage({
                 posts.map((post) => (
                   <article
                     key={post.id}
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row"
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row hover:shadow-xl transition"
                   >
                     <div className="md:w-1/3">
                       <img
@@ -142,12 +180,13 @@ export default async function CategoryPage({
                         </p>
                         <div className="flex flex-wrap gap-2 mt-4">
                           {post.tags.map((t) => (
-                            <span
+                            <Link
                               key={t.tag.id}
-                              className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full"
+                              href={`/tag/${t.tag.slug}`}
+                              className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full hover:bg-blue-200 dark:hover:bg-blue-700 transition"
                             >
                               {t.tag.name}
-                            </span>
+                            </Link>
                           ))}
                         </div>
                       </div>
@@ -191,7 +230,7 @@ export default async function CategoryPage({
               )}
             </div>
 
-            {/* Right Sidebar - Top Tags */}
+            {/* Top Tags Sidebar */}
             <aside className="space-y-8">
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
                 <h3 className="text-xl font-bold mb-4">Top Tags</h3>
