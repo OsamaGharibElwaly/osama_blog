@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Osama Blog - Fullstack Application
 
-## Getting Started
+This is a fullstack blog application built with **Next.js 16** 🖥️, **Tailwind CSS** 🌪️, **Prisma** 🔥, and deployed on **Vercel** 🚀.
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-16.0-000000?style=flat&logo=next.js)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-2.2-38BDF8?style=flat&logo=tailwind-css)
+![Prisma](https://img.shields.io/badge/Prisma-2.0-2D3748?style=flat&logo=prisma)
+![Vercel](https://img.shields.io/badge/Vercel-Deploy-000000?style=flat&logo=vercel)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Authentication** 🔐: User login and registration with email/password.
+- **Authorization** 🔑: Role-based access (Admin & User).
+- **CRUD Operations** 📝: Create, Read, Update, and Delete blog posts.
+- **Database** 🗄️: Powered by **Prisma** with a relational database.
+- **Tailwind CSS** : Utility-first CSS framework for styling.
+- **Vercel Deployment** 🌍: Seamless deployment with Vercel.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Important Dependencies
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Here are the key dependencies used in the project:
 
-## Learn More
+- ![NextAuth.js](https://img.shields.io/badge/NextAuth.js-%5E4.24.13-000000?style=flat&logo=next-auth): Authentication library for Next.js.
+- ![Prisma](https://img.shields.io/badge/Prisma-%5E7.1.0-2D3748?style=flat&logo=prisma): ORM for database management.
+- ![bcryptjs](https://img.shields.io/badge/bcryptjs-%5E3.0.3-000000?style=flat&logo=bcrypt): Library for password hashing.
+- ![clsx](https://img.shields.io/badge/clsx-%5E2.1.1-000000?style=flat&logo=react): Utility for constructing `className` strings conditionally.
+- ![date-fns](https://img.shields.io/badge/date--fns-%5E4.1.0-000000?style=flat&logo=javascript): JavaScript date utility functions.
+- ![jose](https://img.shields.io/badge/jose-%5E6.1.3-000000?style=flat&logo=javascript): JWT implementation for Node.js.
+- ![lucide-react](https://img.shields.io/badge/lucide--react-%5E0.559.0-000000?style=flat&logo=react): React icons library.
+- ![react-hook-form](https://img.shields.io/badge/React%20Hook%20Form-%5E7.68.0-61DAFB?style=flat&logo=react-hook-form): Library for managing forms in React.
+- ![react-hot-toast](https://img.shields.io/badge/React%20Hot%20Toast-%5E2.6.0-FF8332?style=flat&logo=react): Toast notifications for React.
+- ![react-markdown](https://img.shields.io/badge/React%20Markdown-%5E10.1.0-000000?style=flat&logo=react): Markdown renderer for React.
+- ![tailwind-merge](https://img.shields.io/badge/Tailwind%20Merge-%5E3.4.0-38BDF8?style=flat&logo=tailwind-css): Utility to merge Tailwind CSS class names.
+- ![zod](https://img.shields.io/badge/Zod-%5E4.1.13-2D3748?style=flat&logo=typescript): TypeScript-first schema validation library.
 
-To learn more about Next.js, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
