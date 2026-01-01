@@ -81,7 +81,15 @@ export default async function AuthorDashboard() {
             </div>
           </div>
 
-          <LogoutButton />
+          <form action="/api/auth/signout" method="post">
+            <input type="hidden" name="callbackUrl" value="/" />
+            <button
+              type="submit"
+              className="w-full text-left py-3 px-4 hover:bg-red-900/30 rounded-lg text-red-400 font-medium transition"
+            >
+              Logout
+            </button>
+          </form>
         </div>
       </aside>
 

@@ -40,17 +40,22 @@ type PublicTag = {
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const resolvedSearchParams = await searchParams;
+  const callbackUrl = resolvedSearchParams.callbackUrl;
   const session = await getServerSession(authOptions);
-
-  if (session) {
-    if (session.user?.role === "ADMIN") {
-      redirect("/admin-panel");
-    } else if (session.user?.role === "AUTHOR") {
-      redirect("/author-panel");
-    }
-  }
+  if (session && callbackUrl?.includes("/login")) {
+  redirect(session.user.role === "ADMIN" ? "/admin-panel" : "/author-panel");
+}
+  
+  // if (session) {
+  //   if (session.user?.role === "ADMIN") {
+  //     redirect("/admin-panel");
+  //   } else if (session.user?.role === "AUTHOR") {
+  //     redirect("/author-panel");
+  //   }
+  // }
 
   const { page } = await searchParams;
   const currentPage = Number(page) || 1;
